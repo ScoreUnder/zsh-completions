@@ -1,0 +1,4 @@
+#compdef nethogs
+
+_arguments \
+    '*:interface:_net_interfaces'
