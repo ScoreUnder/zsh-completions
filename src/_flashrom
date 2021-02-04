@@ -1,0 +1,61 @@
+#compdef flashrom
+
+_arguments \
+    '(-h --help)'{-h,--help}'[print help text]' \
+    '(-R --version)'{-R,--version}'[print version (release)]' \
+    '(-r --read)'{-r,--read}'[read flash and save to <file>]:file:_path_files' \
+    '(-w --write)'{-w,--write}'[write <file> to flash]:file:_path_files' \
+    '(-v --verify)'{-v,--verify}'[verify flash against <file>]:file:_path_files' \
+    '(-E --erase)'{-E,--erase}'[erase flash memory]' \
+    '(-V --verbose)'{-V,--verbose}'[more verbose output]' \
+    '(-c --chip)'{-c,--chip}'[probe only for specified flash chip]:chipname:->chips' \
+    '(-f --force)'{-f,--force}'[force specific operations (see man page)]' \
+    '(-n --noverify)'{-n,--noverify}'[don'\''t auto-verify]' \
+    '(-N --noverify-all)'{-N,--noverify-all}'[verify included regions only (cf. -i)]' \
+    '(-l --layout)'{-l,--layout}'[read ROM layout from <layoutfile>]:layoutfile:_path_files' \
+    '--ifd[read layout from an Intel Firmware Descriptor]' \
+    '(-i --image)'{-i,--image}'[only flash image <name> from flash layout]:name' \
+    '(-o --output)'{-o,--output}'[log output to <logfile>]:logfile:_path_files' \
+    '(-L --list-supported)'{-L,--list-supported}'[print supported devices]' \
+    '(-p --programmer)'{-p,--programmer}'[specify the programmer device]:programmer device:->programmers'
+
+case $state in
+    chips)
+        _values 'chipname' $(flashrom -L | perl -lne '
+            BEGIN { $state=0; }
+
+            sub process_line {
+                my @line = split;
+                my $chip;
+                if ($state == 2) {
+                    $chip = $line[1];
+                } else {
+                    $chip = $line[0];
+                }
+                if ($chip =~ s/\/$//) {
+                    $state = 3;
+                } else {
+                    $state = 2;
+                }
+                print $chip if $chip;
+            }
+
+            if ($state == 0) {
+                $state = 1 if /Supported flash chips/;
+            } elsif ($state == 1) {
+                if (/^\w/ && !/^Vendor/) {
+                    $state = 2;
+                    process_line;
+                }
+            } elsif ($state == 2 || $state == 3) {
+                exit unless /\S/;
+                process_line;
+            }')
+        ;;
+    programmers)
+        _values 'programmer device' $(flashrom -L | perl -lne '
+            if (/^Supported programmers/../^$/ and !/^Supported programmers/) {
+                print for split /,\s*/;
+            }')
+        ;;
+esac
